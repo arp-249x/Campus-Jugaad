@@ -1,5 +1,6 @@
 import { Calendar, Shield } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { UrgencySelector } from "./UrgencySelector";
 import { SuccessModal } from "./SuccessModal";
 import { useToast } from "./ToastContext";
@@ -20,7 +21,7 @@ interface Quest {
   deadline: string;
   location?: string;
   highlighted?: boolean;
-  isMyQuest?: boolean; // Added property
+  isMyQuest?: boolean;
 }
 
 interface TaskMasterViewProps {
@@ -40,6 +41,18 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
   const [errors, setErrors] = useState<FormErrors>({});
   const { showToast } = useToast();
 
+  // --- Animation Logic ---
+  const words = ["Conquer Campus?", "Be Task Master?", "Delegate Chaos?", "Save Your Time?","Bring your Heros"];
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % words.length);
+    }, 3000); // Change text every 2.5 seconds
+    return () => clearInterval(interval);
+  }, []);
+  // -----------------------
+
   const validateForm = () => {
     const newErrors: FormErrors = {};
     
@@ -54,7 +67,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
     if (!formData.deadline) {
       newErrors.deadline = "Deadline is required";
     } else {
-      // Enhanced Time-Based Validation: Check if deadline is in the past
       const selectedDate = new Date(formData.deadline);
       const now = new Date();
       
@@ -71,7 +83,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
     
     setErrors(newErrors);
     
-    // If there are any errors, show a toast notification
     if (Object.keys(newErrors).length > 0) {
       showToast("error", "Validation Error", "Please fill in all required fields correctly.");
       return false;
@@ -82,28 +93,21 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
 
   const handleSubmit = () => {
     if (validateForm()) {
-      // Create new quest object
       const newQuest: Quest = {
         title: formData.taskName,
         description: formData.taskDetails,
         reward: parseFloat(formData.incentive),
-        xp: Math.floor(parseFloat(formData.incentive) / 3), // Calculate XP based on reward
+        xp: Math.floor(parseFloat(formData.incentive) / 3),
         urgency: urgency,
         deadline: formatDeadline(formData.deadline),
         location: formData.location || undefined,
-        isMyQuest: true, // Mark this quest as created by the current user
+        isMyQuest: true,
       };
       
-      // Add quest to global state
       addQuest(newQuest);
-      
-      // Show success modal
       setShowSuccessModal(true);
-      
-      // Show success toast
       showToast("success", "Quest Posted!", "Your quest has been posted successfully.");
       
-      // Reset form after successful submission
       setTimeout(() => {
         setFormData({
           taskName: "",
@@ -119,7 +123,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
     }
   };
 
-  // Helper function to format deadline for display
   const formatDeadline = (datetimeLocal: string): string => {
     const date = new Date(datetimeLocal);
     const now = new Date();
@@ -132,15 +135,12 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
       hour12: true 
     });
     
-    // Check if it's today
     if (date.toDateString() === now.toDateString()) {
       return `Today, ${timeString}`;
     }
-    // Check if it's tomorrow
     else if (date.toDateString() === tomorrow.toDateString()) {
       return `Tomorrow, ${timeString}`;
     }
-    // Otherwise return full date
     else {
       return date.toLocaleDateString('en-US', { 
         month: 'short', 
@@ -155,15 +155,36 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
   return (
     <div className="min-h-screen pt-16 md:pt-28 pb-20 md:pb-16 px-4 md:px-8 bg-[var(--campus-bg)]">
       <div className="max-w-[1400px] mx-auto">
-        {/* Hero Section */}
+        {/* --- HERO SECTION FIXED --- */}
         <div className="text-center mb-8 md:mb-12">
-          <h1 className="mb-4 text-2xl md:text-4xl lg:text-5xl">
-            Ready to{" "}
-            <span className="bg-gradient-to-r from-[#2D7FF9] to-[#9D4EDD] bg-clip-text text-transparent">
-              Conquer Campus?
-            </span>
+          {/* Main Title Container - Flexbox centers "Ready to" and the animated words vertically */}
+          <h1 className="mb-4 text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold flex flex-col md:flex-row items-center justify-center gap-2 md:gap-3 leading-tight">
+            <span className="text-[var(--campus-text-primary)] whitespace-nowrap">Ready to</span>
+            
+            {/* Animated Word Container 
+               - h-[1.2em]: Tighter height to prevent layout shift
+               - w-[90vw]: Full width on mobile for safety
+               - md:w-[450px]: Fixed width on desktop to prevent jitter
+            */}
+            <div className="h-[1.2em] relative w-[90vw] md:w-[450px] lg:w-[550px] text-center md:text-left overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.span
+                  key={index}
+                  initial={{ y: 50, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={{ y: -50, opacity: 0 }}
+                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                  // Added 'flex items-center' and 'justify-center/justify-start' to force text vertical centering
+                  className="absolute inset-0 flex items-center justify-center md:justify-start bg-gradient-to-r from-[#2D7FF9] to-[#9D4EDD] bg-clip-text text-transparent font-bold whitespace-nowrap"
+                >
+                  {words[index]}
+                </motion.span>
+              </AnimatePresence>
+            </div>
           </h1>
-          <p className="text-[var(--campus-text-secondary)] text-base md:text-lg lg:text-xl">
+          
+          {/* Subtitle */}
+          <p className="text-[var(--campus-text-secondary)] text-base md:text-lg lg:text-xl max-w-2xl mx-auto px-4">
             Delegate your chaos. Summon a Hero.
           </p>
         </div>
@@ -171,7 +192,7 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
         {/* Main Form Card */}
         <div className="max-w-2xl mx-auto">
           <div className="relative bg-[var(--campus-card-bg)] bg-opacity-50 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-[var(--campus-border)] shadow-2xl">
-            {/* Glassmorphic glow effect */}
+            {/* Glow effect */}
             <div className="absolute -inset-0.5 bg-gradient-to-r from-[#2D7FF9]/20 to-[#9D4EDD]/20 rounded-3xl blur-xl opacity-50"></div>
             
             <div className="relative space-y-6">
@@ -199,7 +220,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
 
               {/* Row 1: Task Details vs Deadline & Urgency */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left: Task Details */}
                 <div>
                   <label className="block text-[var(--campus-text-primary)] mb-2">Task Details</label>
                   <textarea
@@ -221,9 +241,7 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
                   )}
                 </div>
 
-                {/* Right: Deadline & Urgency */}
                 <div className="space-y-6">
-                  {/* Deadline */}
                   <div>
                     <label className="block text-[var(--campus-text-primary)] mb-2">Deadline</label>
                     <div className="relative">
@@ -247,7 +265,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
                     )}
                   </div>
 
-                  {/* Urgency Selector */}
                   <div>
                     <label className="block text-[var(--campus-text-primary)] mb-4">Urgency</label>
                     <UrgencySelector value={urgency} onChange={setUrgency} />
@@ -255,9 +272,8 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
                 </div>
               </div>
 
-              {/* Row 2: Incentive vs Location (Aligned parallel) */}
+              {/* Row 2: Incentive vs Location */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Incentive Amount */}
                 <div>
                   <label className="block text-[var(--campus-text-primary)] mb-2">Incentive Amount</label>
                   <div className="relative">
@@ -282,7 +298,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
                   )}
                 </div>
 
-                {/* Location (Optional) */}
                 <div>
                   <label className="block text-[var(--campus-text-primary)] mb-2">Location (Optional)</label>
                   <input
@@ -297,7 +312,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
                 </div>
               </div>
 
-              {/* Submit Button */}
               <button 
                 onClick={handleSubmit}
                 className="w-full mt-8 py-4 bg-gradient-to-r from-[#2D7FF9] to-[#9D4EDD] rounded-xl text-white transition-all hover:shadow-lg hover:shadow-[#2D7FF9]/50 hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 group"
@@ -308,7 +322,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
             </div>
           </div>
 
-          {/* Preview Card on the Right */}
           <div className="mt-8 bg-[var(--campus-card-bg)] bg-opacity-50 backdrop-blur-xl rounded-2xl p-6 border border-[var(--campus-border)]">
             <h3 className="text-[var(--campus-text-primary)] mb-3">Preview</h3>
             <div className="bg-[var(--campus-surface)] rounded-xl p-4 border border-[#2D7FF9]/30">
@@ -334,7 +347,6 @@ export function TaskMasterView({ addQuest }: TaskMasterViewProps) {
         </div>
       </div>
 
-      {/* Success Modal */}
       <SuccessModal 
         isOpen={showSuccessModal} 
         onClose={() => setShowSuccessModal(false)} 

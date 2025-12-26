@@ -1,7 +1,9 @@
-import { X, Plus, ArrowDownToLine, TrendingUp, TrendingDown } from "lucide-react";
+import { X, Plus, ArrowDownToLine, TrendingUp, TrendingDown, Check } from "lucide-react";
 import { motion } from "motion/react";
+import { useState } from "react";
 
-interface Transaction {
+// Matches the interface in App.tsx
+export interface Transaction {
   id: string;
   type: "credit" | "debit";
   description: string;
@@ -14,51 +16,44 @@ interface WalletOverlayProps {
   isOpen: boolean;
   onClose: () => void;
   balance: number;
+  transactions: Transaction[];
+  onWithdraw: (amount: number) => void;
+  onAddMoney: (amount: number) => void;
 }
 
-export function WalletOverlay({ isOpen, onClose, balance }: WalletOverlayProps) {
-  const transactions: Transaction[] = [
-    {
-      id: "TXN-1023",
-      type: "credit",
-      description: "Quest Reward: Print Assignment",
-      amount: 100,
-      status: "success",
-      date: "Dec 25, 2:30 PM",
-    },
-    {
-      id: "TXN-1022",
-      type: "debit",
-      description: "Platform Fee",
-      amount: 5,
-      status: "success",
-      date: "Dec 25, 2:30 PM",
-    },
-    {
-      id: "TXN-1021",
-      type: "credit",
-      description: "Quest Reward: Hold Canteen Line",
-      amount: 150,
-      status: "success",
-      date: "Dec 24, 5:15 PM",
-    },
-    {
-      id: "TXN-1020",
-      type: "credit",
-      description: "Quest Reward: Wake Me Up Call",
-      amount: 80,
-      status: "pending",
-      date: "Dec 24, 8:00 AM",
-    },
-    {
-      id: "TXN-1019",
-      type: "debit",
-      description: "Withdrawal to Bank",
-      amount: 500,
-      status: "success",
-      date: "Dec 23, 3:45 PM",
-    },
-  ];
+export function WalletOverlay({ 
+  isOpen, 
+  onClose, 
+  balance, 
+  transactions, 
+  onWithdraw, 
+  onAddMoney 
+}: WalletOverlayProps) {
+  const [transactionMode, setTransactionMode] = useState<"none" | "add" | "withdraw">("none");
+  const [amountInput, setAmountInput] = useState("");
+
+  const handleTransactionSubmit = () => {
+    const amount = parseFloat(amountInput);
+    if (!amount || amount <= 0) return;
+    
+    if (transactionMode === "withdraw") {
+        if (amount > balance) {
+            alert("Insufficient balance!");
+            return;
+        }
+        onWithdraw(amount);
+    } else if (transactionMode === "add") {
+        onAddMoney(amount);
+    }
+
+    setTransactionMode("none");
+    setAmountInput("");
+  };
+
+  const handleCancel = () => {
+    setTransactionMode("none");
+    setAmountInput("");
+  };
 
   if (!isOpen) return null;
 
@@ -82,7 +77,7 @@ export function WalletOverlay({ isOpen, onClose, balance }: WalletOverlayProps) 
         className="fixed top-0 right-0 h-full w-full md:w-[480px] bg-[var(--campus-bg)] border-l border-[var(--campus-border)] z-50 overflow-y-auto"
       >
         {/* Header */}
-        <div className="sticky top-0 bg-[var(--campus-bg)] border-b border-[var(--campus-border)] px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-[var(--campus-bg)] border-b border-[var(--campus-border)] px-6 py-4 flex items-center justify-between z-10">
           <h2 className="text-[var(--campus-text-primary)]">My Wallet</h2>
           <button
             onClick={onClose}
@@ -95,106 +90,134 @@ export function WalletOverlay({ isOpen, onClose, balance }: WalletOverlayProps) 
         {/* Content */}
         <div className="p-6 space-y-6">
           {/* Balance Card */}
-          <div className="bg-gradient-to-br from-[#2D7FF9] to-[#9D4EDD] rounded-2xl p-6 text-white">
+          <div className="bg-gradient-to-br from-[#2D7FF9] to-[#9D4EDD] rounded-2xl p-6 text-white transition-all">
             <p className="text-sm opacity-90 mb-2">Current Balance</p>
-            <p className="text-4xl mb-6">₹{balance}</p>
+            <p className="text-4xl mb-6 font-bold">₹{balance.toLocaleString()}</p>
             
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
-              <button className="bg-white/20 backdrop-blur-md hover:bg-white/30 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
-                <Plus className="w-5 h-5" />
-                <span>Add Money</span>
-              </button>
-              <button className="bg-[#00F5D4]/20 backdrop-blur-md hover:bg-[#00F5D4]/30 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors">
-                <ArrowDownToLine className="w-5 h-5" />
-                <span>Withdraw</span>
-              </button>
-            </div>
+            {transactionMode === "none" ? (
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  onClick={() => setTransactionMode("add")}
+                  className="bg-white/20 backdrop-blur-md hover:bg-white/30 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add Money</span>
+                </button>
+                <button 
+                  onClick={() => setTransactionMode("withdraw")}
+                  className="bg-[#00F5D4]/20 backdrop-blur-md hover:bg-[#00F5D4]/30 py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  <ArrowDownToLine className="w-5 h-5" />
+                  <span>Withdraw</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                 <div className="flex justify-between items-center mb-1">
+                    <span className="text-sm opacity-90">
+                        {transactionMode === "add" ? "Add to Wallet" : "Withdraw to Bank"}
+                    </span>
+                 </div>
+                 
+                 <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/70">₹</span>
+                    <input 
+                      type="number"
+                      autoFocus
+                      placeholder="Enter amount"
+                      value={amountInput}
+                      onChange={(e) => setAmountInput(e.target.value)}
+                      className="w-full bg-white/10 border border-white/20 rounded-xl py-2 pl-8 pr-4 text-white placeholder:text-white/50 focus:outline-none focus:bg-white/20"
+                    />
+                 </div>
+                 
+                 <div className="grid grid-cols-2 gap-3">
+                   <button 
+                     onClick={handleCancel}
+                     className="bg-white/10 hover:bg-white/20 py-2 rounded-xl text-sm transition-colors"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                     onClick={handleTransactionSubmit}
+                     className={`text-black py-2 rounded-xl flex items-center justify-center gap-2 text-sm font-semibold transition-colors ${
+                         transactionMode === "add" 
+                         ? "bg-[#00F5D4] hover:bg-[#00F5D4]/90"
+                         : "bg-[#FFD700] hover:bg-[#FFD700]/90"
+                     }`}
+                   >
+                     <Check className="w-4 h-4" />
+                     Confirm
+                   </button>
+                 </div>
+              </div>
+            )}
           </div>
 
           {/* Recent Transactions */}
           <div>
             <h3 className="text-[var(--campus-text-primary)] mb-4">Recent Transactions</h3>
             
-            {/* Transaction Table */}
+            {/* Transaction List - Mobile Friendly */}
             <div className="bg-[var(--campus-card-bg)] rounded-xl border border-[var(--campus-border)] overflow-hidden">
-              {/* Table Header */}
-              <div className="grid grid-cols-12 gap-4 px-4 py-3 bg-[var(--campus-border)] text-xs text-[var(--campus-text-secondary)] border-b border-[var(--campus-border)]">
-                <div className="col-span-5">Details</div>
-                <div className="col-span-3">ID</div>
-                <div className="col-span-2 text-right">Amount</div>
-                <div className="col-span-2 text-center">Status</div>
-              </div>
+              {transactions.length === 0 ? (
+                <div className="p-8 text-center text-[var(--campus-text-secondary)]">
+                  <p>No transactions yet.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[var(--campus-border)]">
+                  {transactions.map((txn) => (
+                    <div
+                      key={txn.id}
+                      className="flex items-center gap-3 p-4 hover:bg-[var(--campus-border)] transition-colors"
+                    >
+                      {/* Icon */}
+                      <div
+                        className={`p-2 rounded-xl shrink-0 ${
+                          txn.type === "credit"
+                            ? "bg-[#00F5D4]/10 text-[#00F5D4]"
+                            : "bg-red-500/10 text-red-500"
+                        }`}
+                      >
+                        {txn.type === "credit" ? (
+                          <TrendingUp className="w-5 h-5" />
+                        ) : (
+                          <TrendingDown className="w-5 h-5" />
+                        )}
+                      </div>
 
-              {/* Table Rows */}
-              <div className="divide-y divide-[var(--campus-border)]">
-                {transactions.map((txn) => (
-                  <div
-                    key={txn.id}
-                    className="grid grid-cols-12 gap-4 px-4 py-4 hover:bg-[var(--campus-border)] transition-colors"
-                  >
-                    {/* Details */}
-                    <div className="col-span-5">
-                      <div className="flex items-start gap-2">
-                        <div
-                          className={`mt-0.5 p-1.5 rounded-lg ${
-                            txn.type === "credit"
-                              ? "bg-[#00F5D4]/10 text-[#00F5D4]"
-                              : "bg-red-500/10 text-red-500"
-                          }`}
-                        >
-                          {txn.type === "credit" ? (
-                            <TrendingUp className="w-4 h-4" />
-                          ) : (
-                            <TrendingDown className="w-4 h-4" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-[var(--campus-text-primary)] truncate">
-                            {txn.description}
-                          </p>
-                          <p className="text-xs text-[var(--campus-text-secondary)] mt-0.5">
-                            {txn.date}
-                          </p>
+                      {/* Info - Flexible Width */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[var(--campus-text-primary)] truncate">
+                          {txn.description}
+                        </p>
+                        <div className="flex items-center gap-2 text-xs text-[var(--campus-text-secondary)]">
+                          <span>{txn.date}</span>
+                          <span className="hidden sm:inline-block px-1.5 py-0.5 rounded bg-[var(--campus-border)] font-mono">
+                            {txn.id}
+                          </span>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Transaction ID */}
-                    <div className="col-span-3">
-                      <p className="text-xs text-[var(--campus-text-secondary)] font-mono">
-                        {txn.id}
-                      </p>
+                      {/* Amount & Status */}
+                      <div className="text-right shrink-0">
+                        <p
+                          className={`text-sm font-semibold ${
+                            txn.type === "credit" ? "text-[#00F5D4]" : "text-red-500"
+                          }`}
+                        >
+                          {txn.type === "credit" ? "+" : "-"}₹{txn.amount}
+                        </p>
+                        <span className={`text-xs ${
+                            txn.status === "success" ? "text-[#00F5D4]" : "text-yellow-500"
+                        }`}>
+                            {txn.status}
+                        </span>
+                      </div>
                     </div>
-
-                    {/* Amount */}
-                    <div className="col-span-2 text-right">
-                      <p
-                        className={`text-sm ${
-                          txn.type === "credit" ? "text-[#00F5D4]" : "text-red-500"
-                        }`}
-                      >
-                        {txn.type === "credit" ? "+" : "-"}₹{txn.amount}
-                      </p>
-                    </div>
-
-                    {/* Status */}
-                    <div className="col-span-2 flex justify-center">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs ${
-                          txn.status === "success"
-                            ? "bg-[#00F5D4]/10 text-[#00F5D4] border border-[#00F5D4]/30"
-                            : txn.status === "pending"
-                            ? "bg-yellow-500/10 text-yellow-500 border border-yellow-500/30"
-                            : "bg-red-500/10 text-red-500 border border-red-500/30"
-                        }`}
-                      >
-                        {txn.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

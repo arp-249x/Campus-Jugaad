@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ThemeProvider } from "./components/ThemeContext";
 import { ToastProvider, useToast } from "./components/ToastContext";
 import { Navigation } from "./components/Navigation";
@@ -12,7 +12,6 @@ import { ActiveQuestBar } from "./components/ActiveQuestBar";
 import { MobileMenu } from "./components/MobileMenu";
 import { WalletOverlay } from "./components/WalletOverlay";
 import { NotificationPanel } from "./components/NotificationPanel";
-import { Footer } from "./components/Footer";
 
 // Define Quest interface
 interface Quest {
@@ -24,7 +23,17 @@ interface Quest {
   deadline: string;
   location?: string;
   highlighted?: boolean;
-  isMyQuest?: boolean; // Added property
+  isMyQuest?: boolean;
+}
+
+// Define Transaction Interface
+export interface Transaction {
+  id: string;
+  type: "credit" | "debit";
+  description: string;
+  amount: number;
+  status: "success" | "pending" | "failed";
+  date: string;
 }
 
 function AppContent() {
@@ -40,98 +49,113 @@ function AppContent() {
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const { showToast } = useToast();
 
-  // Centralized Quest State
-  const [quests, setQuests] = useState<Quest[]>([
-    {
-      title: "Hold Canteen Line Spot",
-      description: "Stand in the lunch queue for me for 20 mins.",
-      reward: 150,
-      xp: 50,
-      urgency: "medium" as const,
-      deadline: "Today, 2 PM",
-      location: "Main Canteen",
-    },
-    {
-      title: "Deliver Lab Coat ASAP",
-      description: "Forgot my coat at Hostel 4. Need it at Chem Lab now!",
-      reward: 250,
-      xp: 75,
-      urgency: "urgent" as const,
-      deadline: "In 30 Mins",
-      location: "Hostel 4 → Chem Lab",
-    },
-    {
-      title: "Tutoring Session: Calculus II",
-      description: "2-hour session to prep for midterm exam.",
-      reward: 600,
-      xp: 200,
-      urgency: "low" as const,
-      deadline: "Tomorrow, 5 PM",
-      location: "Library",
-      highlighted: true,
-    },
-    {
-      title: "Print Assignment",
-      description: "Print 10 pages and deliver to Block A, Room 204.",
-      reward: 100,
-      xp: 30,
-      urgency: "medium" as const,
-      deadline: "Today, 4 PM",
-      location: "Block A",
-    },
-    {
-      title: "Wake Me Up Call",
-      description: "Call me at 6 AM for morning class. I'm a heavy sleeper!",
-      reward: 80,
-      xp: 25,
-      urgency: "low" as const,
-      deadline: "Tomorrow, 6 AM",
-    },
-    {
-      title: "Submit Assignment",
-      description: "Submit my assignment to the faculty office before 12 PM.",
-      reward: 200,
-      xp: 60,
-      urgency: "urgent" as const,
-      deadline: "Today, 11:30 AM",
-      location: "Faculty Office",
-    },
-    {
-      title: "Buy Snacks from Canteen",
-      description: "Get me 2 samosas and a cold coffee during break.",
-      reward: 120,
-      xp: 40,
-      urgency: "low" as const,
-      deadline: "Today, 3 PM",
-      location: "Canteen",
-    },
-    {
-      title: "Take Notes in Class",
-      description: "Attend CS101 lecture and share detailed notes.",
-      reward: 300,
-      xp: 100,
-      urgency: "medium" as const,
-      deadline: "Today, 10 AM",
-      location: "Room 301",
-    },
-    {
-      title: "Return Library Book",
-      description: "Return 'Data Structures' book to library before due date.",
-      reward: 90,
-      xp: 35,
-      urgency: "medium" as const,
-      deadline: "Tomorrow, 6 PM",
-      location: "Library",
-    },
-  ]);
+  // --- 1. Load Data from LocalStorage ---
+  
+  // Load Quests
+  const [quests, setQuests] = useState<Quest[]>(() => {
+    const savedQuests = localStorage.getItem("campus_jugaad_quests");
+    if (savedQuests) return JSON.parse(savedQuests);
+    return [
+      {
+        title: "Hold Canteen Line Spot",
+        description: "Stand in the lunch queue for me for 20 mins.",
+        reward: 150,
+        xp: 50,
+        urgency: "medium",
+        deadline: "Today, 2 PM",
+        location: "Main Canteen",
+      },
+      {
+        title: "Deliver Lab Coat ASAP",
+        description: "Forgot my coat at Hostel 4. Need it at Chem Lab now!",
+        reward: 250,
+        xp: 75,
+        urgency: "urgent",
+        deadline: "In 30 Mins",
+        location: "Hostel 4 → Chem Lab",
+      },
+      {
+        title: "Tutoring Session: Calculus II",
+        description: "2-hour session to prep for midterm exam.",
+        reward: 600,
+        xp: 200,
+        urgency: "low",
+        deadline: "Tomorrow, 5 PM",
+        location: "Library",
+        highlighted: true,
+      },
+      {
+        title: "Print Assignment",
+        description: "Print 10 pages and deliver to Block A, Room 204.",
+        reward: 100,
+        xp: 30,
+        urgency: "medium",
+        deadline: "Today, 4 PM",
+        location: "Block A",
+      },
+    ];
+  });
 
-  // Centralized Wallet Balance State
-  const [balance, setBalance] = useState(450);
+  // Load Balance
+  const [balance, setBalance] = useState(() => {
+    const savedBalance = localStorage.getItem("campus_jugaad_balance");
+    return savedBalance ? parseFloat(savedBalance) : 450;
+  });
 
-  // Add new quest function
+  // Load Transactions
+  const [transactions, setTransactions] = useState<Transaction[]>(() => {
+    const savedTxns = localStorage.getItem("campus_jugaad_transactions");
+    if (savedTxns) return JSON.parse(savedTxns);
+    // Default dummy transactions for first time users
+    return [
+      {
+        id: "TXN-1021",
+        type: "credit",
+        description: "Welcome Bonus",
+        amount: 50,
+        status: "success",
+        date: "Joined",
+      },
+    ];
+  });
+
+  // --- 2. Save to LocalStorage on Change ---
+  useEffect(() => {
+    localStorage.setItem("campus_jugaad_quests", JSON.stringify(quests));
+  }, [quests]);
+
+  useEffect(() => {
+    localStorage.setItem("campus_jugaad_balance", balance.toString());
+  }, [balance]);
+
+  useEffect(() => {
+    localStorage.setItem("campus_jugaad_transactions", JSON.stringify(transactions));
+  }, [transactions]);
+
+  // --- 3. Helper to Create Transaction ---
+  const addTransaction = (type: "credit" | "debit", description: string, amount: number) => {
+    const newTxn: Transaction = {
+      id: `TXN-${Math.floor(Math.random() * 10000)}`,
+      type,
+      description,
+      amount,
+      status: "success",
+      date: new Date().toLocaleString('en-US', { 
+        month: 'short', 
+        day: 'numeric', 
+        hour: 'numeric', 
+        minute: '2-digit',
+        hour12: true 
+      }),
+    };
+    // Add new transaction to the TOP of the list
+    setTransactions(prev => [newTxn, ...prev]);
+  };
+
+  // --- 4. Action Handlers ---
+
   const addQuest = (newQuest: Quest) => {
     setQuests((prevQuests) => [newQuest, ...prevQuests]);
-    // Switch to "find" tab to show the new quest
     setActiveTab("find");
   };
 
@@ -139,35 +163,50 @@ function AppContent() {
     setActiveQuest({
       title: quest.title,
       location: quest.location,
-      duration: 7185, // 1:59:45 in seconds - this would be calculated based on deadline
+      duration: 7185,
       reward: quest.reward,
     });
   };
 
   const handleCompleteQuest = () => {
     if (activeQuest) {
-      // Update balance
       setBalance((prevBalance) => prevBalance + activeQuest.reward);
-      // Show success toast
+      // Create Transaction Record
+      addTransaction("credit", `Quest Reward: ${activeQuest.title}`, activeQuest.reward);
+      
       showToast("success", "Quest Completed!", `₹${activeQuest.reward} added to your wallet!`);
-      // Clear active quest
       setActiveQuest(null);
     }
   };
 
+  const handleWithdraw = (amount: number) => {
+    if (balance >= amount) {
+      setBalance((prev) => prev - amount);
+      // Create Transaction Record
+      addTransaction("debit", "Withdrawal to Bank", amount);
+      
+      showToast("success", "Withdrawal Successful", `₹${amount} transferred to your bank account.`);
+    } else {
+      showToast("error", "Insufficient Funds", "You don't have enough balance to withdraw that amount.");
+    }
+  };
+
+  const handleAddMoney = (amount: number) => {
+    setBalance((prev) => prev + amount);
+    // Create Transaction Record
+    addTransaction("credit", "Added to Wallet", amount);
+    
+    showToast("success", "Money Added", `₹${amount} added to your wallet successfully.`);
+  };
+
   return (
     <div className="min-h-screen bg-[var(--campus-bg)] relative overflow-x-hidden transition-colors duration-300">
-      {/* Animated Background - Only visible in dark mode */}
       <div className="dark:block hidden fixed inset-0 overflow-hidden pointer-events-none">
-        {/* Gradient Orbs */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-[#2D7FF9]/20 rounded-full blur-[120px] animate-pulse"></div>
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-[#9D4EDD]/20 rounded-full blur-[120px] animate-pulse" style={{ animationDelay: '1s' }}></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-[#00F5D4]/10 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '2s' }}></div>
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Desktop Navigation */}
+      <div className="relative z-10">
         <Navigation 
           activeTab={activeTab} 
           onTabChange={setActiveTab}
@@ -177,7 +216,6 @@ function AppContent() {
           balance={balance}
         />
         
-        {/* Mobile Top Bar */}
         <MobileTopBar 
           onMenuClick={() => setShowMobileMenu(true)}
           onWalletClick={() => setShowWalletOverlay(true)}
@@ -185,19 +223,14 @@ function AppContent() {
           balance={balance}
         />
 
-        {/* Main Content Area */}
         {activeTab === "post" && <TaskMasterView addQuest={addQuest} />}
         {activeTab === "find" && <HeroView quests={quests} onAcceptQuest={handleAcceptQuest} />}
         {activeTab === "dashboard" && <DashboardView />}
         {activeTab === "leaderboard" && <LeaderboardView />}
 
-        <Footer />
-        
-        {/* Mobile Bottom Navigation */}
         <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      {/* Active Quest Bar - Only show when quest is accepted */}
       {activeQuest && (
         <ActiveQuestBar 
           quest={activeQuest}
@@ -206,7 +239,6 @@ function AppContent() {
         />
       )}
 
-      {/* Mobile Menu */}
       <MobileMenu
         isOpen={showMobileMenu}
         onClose={() => setShowMobileMenu(false)}
@@ -214,14 +246,16 @@ function AppContent() {
         onTabChange={setActiveTab}
       />
 
-      {/* Wallet Overlay */}
+      {/* Passed transactions prop here */}
       <WalletOverlay
         isOpen={showWalletOverlay}
         onClose={() => setShowWalletOverlay(false)}
         balance={balance}
+        transactions={transactions}
+        onWithdraw={handleWithdraw}
+        onAddMoney={handleAddMoney}
       />
 
-      {/* Notification Panel */}
       <NotificationPanel
         isOpen={showNotificationPanel}
         onClose={() => setShowNotificationPanel(false)}
