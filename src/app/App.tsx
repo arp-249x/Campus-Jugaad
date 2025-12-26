@@ -14,8 +14,8 @@ import { WalletOverlay } from "./components/WalletOverlay";
 import { NotificationPanel } from "./components/NotificationPanel";
 import { Footer } from "./components/Footer";
 
-// Define Quest interface
-interface Quest {
+// Define Quest interface with OTP
+export interface Quest {
   title: string;
   description: string;
   reward: number;
@@ -25,9 +25,9 @@ interface Quest {
   location?: string;
   highlighted?: boolean;
   isMyQuest?: boolean;
+  otp: string; // Added OTP field
 }
 
-// Define Transaction Interface
 export interface Transaction {
   id: string;
   type: "credit" | "debit";
@@ -39,20 +39,22 @@ export interface Transaction {
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState("post");
+  // Active quest now includes OTP for verification
   const [activeQuest, setActiveQuest] = useState<{
     title: string;
     location?: string;
     duration: number;
     reward: number;
+    otp: string;
   } | null>(null);
+  
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showWalletOverlay, setShowWalletOverlay] = useState(false);
   const [showNotificationPanel, setShowNotificationPanel] = useState(false);
   const { showToast } = useToast();
 
-  // --- 1. Load Data from LocalStorage ---
+  // --- 1. Load Data ---
   
-  // Load Quests
   const [quests, setQuests] = useState<Quest[]>(() => {
     const savedQuests = localStorage.getItem("campus_jugaad_quests");
     if (savedQuests) return JSON.parse(savedQuests);
@@ -65,6 +67,7 @@ function AppContent() {
         urgency: "medium",
         deadline: "Today, 2 PM",
         location: "Main Canteen",
+        otp: "1234",
       },
       {
         title: "Deliver Lab Coat ASAP",
@@ -74,6 +77,7 @@ function AppContent() {
         urgency: "urgent",
         deadline: "In 30 Mins",
         location: "Hostel 4 → Chem Lab",
+        otp: "5678",
       },
       {
         title: "Tutoring Session: Calculus II",
@@ -84,6 +88,7 @@ function AppContent() {
         deadline: "Tomorrow, 5 PM",
         location: "Library",
         highlighted: true,
+        otp: "9012",
       },
       {
         title: "Print Assignment",
@@ -93,21 +98,19 @@ function AppContent() {
         urgency: "medium",
         deadline: "Today, 4 PM",
         location: "Block A",
+        otp: "3456",
       },
     ];
   });
 
-  // Load Balance
   const [balance, setBalance] = useState(() => {
     const savedBalance = localStorage.getItem("campus_jugaad_balance");
     return savedBalance ? parseFloat(savedBalance) : 450;
   });
 
-  // Load Transactions
   const [transactions, setTransactions] = useState<Transaction[]>(() => {
     const savedTxns = localStorage.getItem("campus_jugaad_transactions");
     if (savedTxns) return JSON.parse(savedTxns);
-    // Default dummy transactions for first time users
     return [
       {
         id: "TXN-1021",
@@ -120,7 +123,7 @@ function AppContent() {
     ];
   });
 
-  // --- 2. Save to LocalStorage on Change ---
+  // --- 2. Persistence ---
   useEffect(() => {
     localStorage.setItem("campus_jugaad_quests", JSON.stringify(quests));
   }, [quests]);
@@ -133,7 +136,7 @@ function AppContent() {
     localStorage.setItem("campus_jugaad_transactions", JSON.stringify(transactions));
   }, [transactions]);
 
-  // --- 3. Helper to Create Transaction ---
+  // --- 3. Transaction Helper ---
   const addTransaction = (type: "credit" | "debit", description: string, amount: number) => {
     const newTxn: Transaction = {
       id: `TXN-${Math.floor(Math.random() * 10000)}`,
@@ -149,13 +152,29 @@ function AppContent() {
         hour12: true 
       }),
     };
-    // Add new transaction to the TOP of the list
     setTransactions(prev => [newTxn, ...prev]);
   };
 
   // --- 4. Action Handlers ---
 
-  const addQuest = (newQuest: Quest) => {
+  const addQuest = (newQuestData: Omit<Quest, "otp">) => {
+    // Escrow Logic: Deduct money immediately upon posting
+    if (balance < newQuestData.reward) {
+      showToast("error", "Insufficient Balance", "Add money to your wallet to post this quest.");
+      return;
+    }
+
+    // Generate 4 digit OTP
+    const generatedOTP = Math.floor(1000 + Math.random() * 9000).toString();
+
+    const newQuest: Quest = {
+      ...newQuestData,
+      otp: generatedOTP
+    };
+
+    setBalance(prev => prev - newQuest.reward);
+    addTransaction("debit", `Escrow Hold: ${newQuest.title}`, newQuest.reward);
+    
     setQuests((prevQuests) => [newQuest, ...prevQuests]);
     setActiveTab("find");
   };
@@ -166,16 +185,17 @@ function AppContent() {
       location: quest.location,
       duration: 7185,
       reward: quest.reward,
+      otp: quest.otp,
     });
   };
 
   const handleCompleteQuest = () => {
     if (activeQuest) {
+      // Payout Logic: Hero gets the money
       setBalance((prevBalance) => prevBalance + activeQuest.reward);
-      // Create Transaction Record
       addTransaction("credit", `Quest Reward: ${activeQuest.title}`, activeQuest.reward);
       
-      showToast("success", "Quest Completed!", `₹${activeQuest.reward} added to your wallet!`);
+      showToast("success", "Quest Completed!", `OTP Verified! ₹${activeQuest.reward} added to wallet.`);
       setActiveQuest(null);
     }
   };
@@ -183,9 +203,7 @@ function AppContent() {
   const handleWithdraw = (amount: number) => {
     if (balance >= amount) {
       setBalance((prev) => prev - amount);
-      // Create Transaction Record
       addTransaction("debit", "Withdrawal to Bank", amount);
-      
       showToast("success", "Withdrawal Successful", `₹${amount} transferred to your bank account.`);
     } else {
       showToast("error", "Insufficient Funds", "You don't have enough balance to withdraw that amount.");
@@ -194,9 +212,7 @@ function AppContent() {
 
   const handleAddMoney = (amount: number) => {
     setBalance((prev) => prev + amount);
-    // Create Transaction Record
     addTransaction("credit", "Added to Wallet", amount);
-    
     showToast("success", "Money Added", `₹${amount} added to your wallet successfully.`);
   };
 
@@ -224,7 +240,8 @@ function AppContent() {
           balance={balance}
         />
 
-        {activeTab === "post" && <TaskMasterView addQuest={addQuest} />}
+        {/* Pass balance to TaskMaster for validation */}
+        {activeTab === "post" && <TaskMasterView addQuest={addQuest} balance={balance} />}
         {activeTab === "find" && <HeroView quests={quests} onAcceptQuest={handleAcceptQuest} />}
         {activeTab === "dashboard" && <DashboardView />}
         {activeTab === "leaderboard" && <LeaderboardView />}
@@ -249,7 +266,6 @@ function AppContent() {
         onTabChange={setActiveTab}
       />
 
-      {/* Passed transactions prop here */}
       <WalletOverlay
         isOpen={showWalletOverlay}
         onClose={() => setShowWalletOverlay(false)}

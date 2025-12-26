@@ -1,4 +1,4 @@
-import { ArrowUpDown, ListFilter, MapPin } from "lucide-react";
+import { ArrowUpDown, ListFilter, MapPin, Key } from "lucide-react";
 import { QuestCard } from "./QuestCard";
 import { useState } from "react";
 import { ToastNotification } from "./ToastNotification";
@@ -14,7 +14,8 @@ interface Quest {
   deadline: string;
   location?: string;
   highlighted?: boolean;
-  isMyQuest?: boolean; // Added property
+  isMyQuest?: boolean;
+  otp: string; // Added OTP
 }
 
 interface HeroViewProps {
@@ -36,7 +37,6 @@ export function HeroView({ quests, onAcceptQuest }: HeroViewProps) {
     onAcceptQuest?.(quest);
   };
 
-  // Demo functions for testing loading and empty states
   const handleRefresh = () => {
     setIsLoading(true);
     setTimeout(() => setIsLoading(false), 2000);
@@ -62,27 +62,21 @@ export function HeroView({ quests, onAcceptQuest }: HeroViewProps) {
           </p>
         </div>
 
-        {/* Filter Bar - Responsive */}
+        {/* Filter Bar */}
         <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-8">
-          {/* Sort Dropdown */}
           <div className="flex items-center gap-2 bg-[var(--campus-card-bg)] backdrop-blur-md rounded-xl px-3 md:px-4 py-2 md:py-3 border border-[var(--campus-border)] cursor-pointer hover:bg-opacity-80 transition-colors text-sm md:text-base">
             <ArrowUpDown className="w-4 h-4 text-[var(--campus-text-secondary)]" />
             <span className="text-[var(--campus-text-primary)]">Sort by: Highest Pay</span>
           </div>
-
-          {/* Filter Urgency */}
           <div className="flex items-center gap-2 bg-[var(--campus-card-bg)] backdrop-blur-md rounded-xl px-3 md:px-4 py-2 md:py-3 border border-[var(--campus-border)] cursor-pointer hover:bg-opacity-80 transition-colors text-sm md:text-base">
             <ListFilter className="w-4 h-4 text-[var(--campus-text-secondary)]" />
             <span className="text-[var(--campus-text-primary)]">Filter: Urgent</span>
           </div>
-
-          {/* Filter Location */}
           <div className="flex items-center gap-2 bg-[var(--campus-card-bg)] backdrop-blur-md rounded-xl px-3 md:px-4 py-2 md:py-3 border border-[var(--campus-border)] cursor-pointer hover:bg-opacity-80 transition-colors text-sm md:text-base">
             <MapPin className="w-4 h-4 text-[var(--campus-text-secondary)]" />
             <span className="text-[var(--campus-text-primary)]">Location: Hostels</span>
           </div>
 
-          {/* Stats */}
           <div className="ml-auto flex items-center gap-4 md:gap-6 text-sm md:text-base">
             <div className="text-center">
               <div className="text-[var(--campus-text-secondary)] text-xs md:text-sm">Available Quests</div>
@@ -97,10 +91,8 @@ export function HeroView({ quests, onAcceptQuest }: HeroViewProps) {
           </div>
         </div>
 
-        {/* Quest Grid - Loading State */}
         {isLoading && <SkeletonLoader />}
 
-        {/* Quest Grid - Empty State */}
         {showEmpty && !isLoading && (
           <EmptyState
             onRefresh={handleRefresh}
@@ -108,22 +100,29 @@ export function HeroView({ quests, onAcceptQuest }: HeroViewProps) {
           />
         )}
 
-        {/* Quest Grid - Normal State - Responsive: 1 col mobile, 2 col tablet, 3 col desktop */}
         {!isLoading && !showEmpty && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {quests.map((quest, index) => (
-              <QuestCard 
-                key={index} 
-                {...quest} 
-                onAccept={() => handleAcceptQuest(quest, index)}
-                isAccepted={acceptedQuestIds.has(quest.title)}
-              />
+              <div key={index} className="relative group">
+                <QuestCard 
+                  {...quest} 
+                  onAccept={() => handleAcceptQuest(quest, index)}
+                  isAccepted={acceptedQuestIds.has(quest.title)}
+                />
+                
+                {/* PROTOTYPE: OTP Badge */}
+                <div className="absolute top-4 left-4 z-10">
+                   <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-2 py-1 rounded text-xs font-mono text-[#00F5D4] border border-[#00F5D4]/30">
+                     <Key className="w-3 h-3" />
+                     <span>OTP: {quest.otp}</span>
+                   </div>
+                </div>
+              </div>
             ))}
           </div>
         )}
       </div>
 
-      {/* Toast Notification */}
       <ToastNotification
         isVisible={showToast}
         title={acceptedQuest?.title || ""}
