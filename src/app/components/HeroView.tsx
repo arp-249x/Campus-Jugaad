@@ -114,7 +114,7 @@ export function HeroView({ quests, onAcceptQuest }: HeroViewProps) {
                 <div className="absolute top-4 left-4 z-10">
                    <div className="flex items-center gap-1 bg-black/70 backdrop-blur-md px-2 py-1 rounded text-xs font-mono text-[#00F5D4] border border-[#00F5D4]/30">
                      <Key className="w-3 h-3" />
-                     <span>OTP: {quest.otp}</span>
+                     <span>{quest.otp}</span>
                    </div>
                 </div>
               </div>
