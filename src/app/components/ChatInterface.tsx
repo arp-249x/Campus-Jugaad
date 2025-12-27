@@ -26,7 +26,7 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
   const [inputValue, setInputValue] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [isOfflineMode, setIsOfflineMode] = useState(false); 
+  const [isOfflineMode, setIsOfflineMode] = useState(false);
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const chatSession = useRef<any>(null);
@@ -36,6 +36,7 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
     if (isOpen && !chatSession.current) {
       const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
       
+      // Initial Welcome Message
       const initialMsg = `Hey! Thanks for picking up "${questTitle}". I'm at ${questLocation || 'the location'}. Let me know when you're close!`;
       addMessage("taskmaster", initialMsg);
 
@@ -48,8 +49,8 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
       try {
         const genAI = new GoogleGenerativeAI(apiKey);
         
-        // Using Gemini 2.0 Flash as requested
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+        // UPDATED: Using "gemini-2.5-flash" as requested
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
         const promptContext = `
           INSTRUCTIONS:
@@ -104,7 +105,7 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
     setMessages((prev) => [...prev, newMessage]);
   };
 
-  // --- FALLBACK SIMULATION LOGIC ---
+  // --- FALLBACK SIMULATION LOGIC (Wizard of Oz) ---
   const generateOfflineReply = (text: string) => {
     const lower = text.toLowerCase();
     if (lower.includes("otp") || lower.includes("code")) {
@@ -140,7 +141,7 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
     setInputValue("");
     setIsTyping(true);
 
-    // 1. Try Real AI
+    // 1. Try Real AI (gemini-2.5-flash)
     if (!isOfflineMode && chatSession.current) {
         try {
             const result = await chatSession.current.sendMessage(userText);
@@ -151,6 +152,7 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
         } catch (error) {
             console.error("API Error (Quota/Network). Switching to Offline Mode.", error);
             setIsOfflineMode(true);
+            // Fall through to offline logic below
         }
     }
 
@@ -159,7 +161,7 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
         setIsTyping(false);
         const reply = generateOfflineReply(userText);
         addMessage("taskmaster", reply);
-    }, 1500); 
+    }, 1500); // Fake delay
   };
 
   if (!isOpen) return null;
@@ -179,8 +181,7 @@ export function ChatInterface({ isOpen, onClose, questTitle, questLocation, ques
   }
 
   return (
-    // FIX: Changed h-[600px] to h-[60vh] for mobile to prevent cutoff
-    <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 w-[95vw] md:w-[380px] h-[60vh] md:h-[500px] bg-[var(--campus-card-bg)] backdrop-blur-xl border border-[var(--campus-border)] rounded-2xl shadow-2xl flex flex-col z-50 animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden font-sans">
+    <div className="fixed bottom-20 right-4 md:bottom-24 md:right-8 w-[95vw] md:w-[380px] h-[600px] md:h-[500px] bg-[var(--campus-card-bg)] backdrop-blur-xl border border-[var(--campus-border)] rounded-2xl shadow-2xl flex flex-col z-50 animate-in slide-in-from-bottom-10 fade-in duration-300 overflow-hidden font-sans">
       
       {/* Header */}
       <div className="flex items-center justify-between p-3 border-b border-[var(--campus-border)] bg-[#2D7FF9]/10">
